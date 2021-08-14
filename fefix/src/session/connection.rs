@@ -152,12 +152,12 @@ impl Default for FixConnectionBuilder {
 }
 
 #[derive(Debug)]
-pub struct LogonField<F, T>
+pub struct LogonField<'a, F, T>
 where
     T: AsRef<[u8]>,
     F: IsFieldDefinition,
 {
-    field: &F,
+    field: &'a F,
     value: T,
 }
 
@@ -179,13 +179,13 @@ pub struct FixConnection {
 
 #[allow(dead_code)]
 impl FixConnection {
-    pub async fn start<B, I, O>(
+    pub async fn start<'a, B, I, O>(
         &mut self,
         mut app: B,
         mut input: I,
         mut output: O,
         decoder: Decoder,
-        logon_fields: Option<Vec<LogonField<HardCodedFixFieldDefinition, &[u8]>>>,
+        logon_fields: Option<Vec<LogonField<'a, HardCodedFixFieldDefinition, &[u8]>>>,
     ) where
         B: Backend,
         I: AsyncRead + Unpin,
@@ -203,13 +203,13 @@ impl FixConnection {
         self.event_loop(app, input, output, decoder).await;
     }
 
-    async fn establish_connection<A, I, O>(
+    async fn establish_connection<'a, A, I, O>(
         &mut self,
         app: &mut A,
         mut input: &mut I,
         output: &mut O,
         decoder: &mut DecoderBuffered,
-        logon_fields: Option<Vec<LogonField<HardCodedFixFieldDefinition, &[u8]>>>,
+        logon_fields: Option<Vec<LogonField<'a, HardCodedFixFieldDefinition, &[u8]>>>,
     ) where
         A: Backend,
         I: AsyncRead + Unpin,
@@ -230,7 +230,7 @@ impl FixConnection {
             msg.set(fix44::ENCRYPT_METHOD, fix44::EncryptMethod::None);
             msg.set(fix44::HEART_BT_INT, self.heartbeat.as_secs());
             if let Some(fields) = logon_fields {
-                fields.iter().for_each(|f| msg.set(&f.field, f.value));
+                fields.iter().for_each(|f| msg.set(f.field, f.value));
             }
             msg.wrap()
         };
