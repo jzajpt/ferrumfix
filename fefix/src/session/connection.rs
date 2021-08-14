@@ -157,8 +157,8 @@ where
     T: AsRef<[u8]>,
     F: IsFieldDefinition,
 {
-    field: &'a F,
-    value: T,
+    pub field: &'a F,
+    pub value: T,
 }
 
 /// A FIX connection message processor.
