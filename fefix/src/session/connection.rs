@@ -157,7 +157,7 @@ where
     T: AsRef<[u8]>,
     F: IsFieldDefinition,
 {
-    field: F,
+    field: &F,
     value: T,
 }
 
