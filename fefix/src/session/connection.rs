@@ -1,6 +1,6 @@
 use super::{errs, Backend, LlEvent, LlEventLoop};
-use crate::definitions::fix44;
-use crate::dict::{Field, IsFieldDefinition};
+use crate::definitions::{fix44, HardCodedFixFieldDefinition};
+use crate::dict::IsFieldDefinition;
 use crate::session::{Environment, SeqNumbers};
 use crate::tagvalue::FieldAccess;
 use crate::tagvalue::Message;
@@ -152,11 +152,12 @@ impl Default for FixConnectionBuilder {
 }
 
 #[derive(Debug)]
-pub struct LogonField<'a, T>
+pub struct LogonField<F, T>
 where
     T: AsRef<[u8]>,
+    F: IsFieldDefinition,
 {
-    field: Field<'a>,
+    field: F,
     value: T,
 }
 
@@ -178,13 +179,13 @@ pub struct FixConnection {
 
 #[allow(dead_code)]
 impl FixConnection {
-    pub async fn start<'a, B, I, O>(
+    pub async fn start<B, I, O>(
         &mut self,
         mut app: B,
         mut input: I,
         mut output: O,
         decoder: Decoder,
-        logon_fields: Option<Vec<LogonField<'a, &[u8]>>>,
+        logon_fields: Option<Vec<LogonField<HardCodedFixFieldDefinition, &[u8]>>>,
     ) where
         B: Backend,
         I: AsyncRead + Unpin,
@@ -202,13 +203,13 @@ impl FixConnection {
         self.event_loop(app, input, output, decoder).await;
     }
 
-    async fn establish_connection<'a, A, I, O>(
+    async fn establish_connection<A, I, O>(
         &mut self,
         app: &mut A,
         mut input: &mut I,
         output: &mut O,
         decoder: &mut DecoderBuffered,
-        logon_fields: Option<Vec<LogonField<'a, &[u8]>>>,
+        logon_fields: Option<Vec<LogonField<HardCodedFixFieldDefinition, &[u8]>>>,
     ) where
         A: Backend,
         I: AsyncRead + Unpin,
