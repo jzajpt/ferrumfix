@@ -1,6 +1,6 @@
 use super::{errs, Backend, LlEvent, LlEventLoop};
 use crate::definitions::fix44;
-use crate::dict::IsFieldDefinition;
+use crate::dict::{Field, IsFieldDefinition};
 use crate::session::{Environment, SeqNumbers};
 use crate::tagvalue::FieldAccess;
 use crate::tagvalue::Message;
@@ -151,6 +151,15 @@ impl Default for FixConnectionBuilder {
     }
 }
 
+#[derive(Debug)]
+pub struct LogonField<'a, T>
+where
+    T: AsRef<[u8]>,
+{
+    field: Field<'a>,
+    value: T,
+}
+
 /// A FIX connection message processor.
 #[derive(Debug)]
 pub struct FixConnection {
@@ -169,29 +178,37 @@ pub struct FixConnection {
 
 #[allow(dead_code)]
 impl FixConnection {
-    pub async fn start<B, I, O>(
+    pub async fn start<'a, B, I, O>(
         &mut self,
         mut app: B,
         mut input: I,
         mut output: O,
         decoder: Decoder,
+        logon_fields: Option<Vec<LogonField<'a, &[u8]>>>,
     ) where
         B: Backend,
         I: AsyncRead + Unpin,
         O: AsyncWrite + Unpin,
     {
         let mut decoder = decoder.buffered();
-        self.establish_connection(&mut app, &mut input, &mut output, &mut decoder)
-            .await;
+        self.establish_connection(
+            &mut app,
+            &mut input,
+            &mut output,
+            &mut decoder,
+            logon_fields,
+        )
+        .await;
         self.event_loop(app, input, output, decoder).await;
     }
 
-    async fn establish_connection<A, I, O>(
+    async fn establish_connection<'a, A, I, O>(
         &mut self,
         app: &mut A,
         mut input: &mut I,
         output: &mut O,
         decoder: &mut DecoderBuffered,
+        logon_fields: Option<Vec<LogonField<'a, &[u8]>>>,
     ) where
         A: Backend,
         I: AsyncRead + Unpin,
@@ -211,6 +228,9 @@ impl FixConnection {
             msg.set(fix44::MSG_SEQ_NUM, msg_seq_num);
             msg.set(fix44::ENCRYPT_METHOD, fix44::EncryptMethod::None);
             msg.set(fix44::HEART_BT_INT, self.heartbeat.as_secs());
+            if let Some(fields) = logon_fields {
+                fields.iter().for_each(|f| msg.set(&f.field, f.value));
+            }
             msg.wrap()
         };
         output.write(logon).await.unwrap();
